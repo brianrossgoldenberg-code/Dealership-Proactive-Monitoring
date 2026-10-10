@@ -1,7 +1,16 @@
-import { useState, useRef, useEffect } from "react";
-import { X, MapPin, ChevronRight } from "lucide-react";
-import { Vehicle } from "@/types";
+import { useEffect, useState } from "react";
+import {
+  Check,
+  ChevronRight,
+  MapPin,
+  Phone,
+  Shield,
+  X,
+} from "lucide-react";
+import type { Vehicle } from "@/types";
+import { dealerInfo } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import "./VehicleModal.css";
 
 interface VehicleModalProps {
   vehicle: Vehicle;
@@ -16,23 +25,21 @@ const MARK_SAFE_REASONS = [
 ];
 
 function StatusBadge({ status }: { status: Vehicle["status"] }) {
-  if (status === "theft_risk") {
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
-        Suspected Theft
-      </span>
-    );
-  }
-  if (status === "theft") {
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
-        Theft
-      </span>
-    );
-  }
+  const isOffPremises = status === "off_premises";
+  const label = isOffPremises
+    ? "Off Premises"
+    : status === "theft"
+      ? "Suspected Theft in Progress"
+      : "Suspected Theft";
+
   return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200">
-      Off Premises
+    <span
+      className={cn(
+        "vehicle-status-chip",
+        isOffPremises ? "vehicle-status-chip--amber" : "vehicle-status-chip--red",
+      )}
+    >
+      {label}
     </span>
   );
 }
@@ -42,30 +49,31 @@ function VehicleIllustration({ color }: { color: string }) {
     return (
       <img
         src="/mustang-gt-blue.png"
-        alt="2026 Mustang GT Grabber Blue"
-        className="w-full max-w-[200px] object-contain"
+        alt="Grabber Blue Ford Mustang"
+        className="vehicle-illustration vehicle-illustration--photo"
       />
     );
   }
 
   const colorMap: Record<string, string> = {
     White: "#f0f0f0",
-    "Rapid Red": "#C0392B",
-    "Iconic Silver": "#9E9E9E",
-    "Cactus Gray": "#78909C",
+    "Rapid Red": "#c0392b",
+    "Iconic Silver": "#9e9e9e",
+    "Cactus Gray": "#78909c",
     "Oxford White": "#f5f5f5",
   };
   const fill = colorMap[color] || "#888";
 
   return (
-    <svg viewBox="0 0 200 90" className="w-full max-w-[180px]" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      viewBox="0 0 200 90"
+      className="vehicle-illustration"
+      role="img"
+      aria-label={`${color} Ford vehicle`}
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <rect x="10" y="45" width="180" height="28" rx="6" fill={fill} stroke="#555" strokeWidth="1.2" />
-      <path
-        d="M30 45 Q50 18 80 18 L130 18 Q158 18 172 45 Z"
-        fill={fill}
-        stroke="#555"
-        strokeWidth="1.2"
-      />
+      <path d="M30 45 Q50 18 80 18 L130 18 Q158 18 172 45 Z" fill={fill} stroke="#555" strokeWidth="1.2" />
       <rect x="16" y="65" width="168" height="8" rx="2" fill="#333" opacity="0.15" />
       <rect x="12" y="70" width="14" height="14" rx="7" fill="#222" />
       <circle cx="19" cy="77" r="4" fill="#555" />
@@ -83,12 +91,57 @@ function VehicleIllustration({ color }: { color: string }) {
   );
 }
 
-function MapPlaceholder() {
+function getTelHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
+
+function getAlertDescription(vehicle: Vehicle) {
+  return vehicle.status === "off_premises"
+    ? "Outside geofence"
+    : "Rapid acceleration detected";
+}
+
+function getAlertSummary(vehicle: Vehicle) {
+  if (vehicle.status === "off_premises") {
+    return "The vehicle moved beyond the dealership geofence and its latest signal indicates it remains off-site. Confirm the departure before closing this alert.";
+  }
+  return "A rapid-acceleration signal raised a suspected-theft alert. Confirm whether this vehicle movement was authorized before escalating.";
+}
+
+function getEventName(label: string) {
+  return label.replace(/^SVS\s*-\s*/i, "");
+}
+
+function getEventTime(time: string) {
+  return time.replace(/\s*[—–-]\s*$/, "").trim();
+}
+
+function getEventDescription(label: string) {
+  const eventName = getEventName(label).toLowerCase();
+  if (eventName.includes("geofence")) return "Vehicle crossed the dealership geofence.";
+  if (eventName.includes("ignition")) return "Ignition signal changed.";
+  if (eventName.includes("motion")) return "Vehicle motion was detected.";
+  return "Vehicle event recorded.";
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <p className="vehicle-modal-section-label">{children}</p>;
+}
+
+function VehicleDetail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="w-full h-full relative overflow-hidden">
+    <div className="vehicle-detail">
+      <SectionLabel>{label}</SectionLabel>
+      <p className="vehicle-detail-value">{children}</p>
+    </div>
+  );
+}
+
+function MapPreview() {
+  return (
+    <div className="vehicle-map-frame">
       <iframe
-        title="Serramonte Ford location"
-        className="absolute inset-0 w-full h-full border-0"
+        title="Google Maps reference preview centered on the dealership"
         loading="lazy"
         referrerPolicy="no-referrer-when-downgrade"
         src="https://maps.google.com/maps?q=707+Serramonte+Blvd,+Colma,+CA+94014&output=embed&z=14&t=m"
@@ -98,213 +151,212 @@ function MapPlaceholder() {
 }
 
 export function VehicleModal({ vehicle, onClose }: VehicleModalProps) {
-  const [markSafeMode, setMarkSafeMode] = useState(false);
-  const [selectedReason, setSelectedReason] = useState<string>("");
-  const [reasonDropdownOpen, setReasonDropdownOpen] = useState(false);
+  const [markSafeOpen, setMarkSafeOpen] = useState(false);
+  const [selectedReason, setSelectedReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const alertDescription = getAlertDescription(vehicle);
+  const latestEvent = vehicle.activity.find((event) => event.active) ?? vehicle.activity[0];
+  const lastSignal = latestEvent?.time ? getEventTime(latestEvent.time) : "Unavailable";
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setReasonDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
-  const handleConfirmSafe = () => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  function handleConfirmSafe() {
     if (!selectedReason) return;
     setConfirmed(true);
-    setTimeout(onClose, 900);
-  };
+    window.setTimeout(onClose, 900);
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="vehicle-modal-backdrop" onClick={onClose}>
       <div
-        className="bg-white rounded-xl shadow-2xl flex overflow-hidden w-[860px] max-w-[95vw] max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()}
+        className={cn("vehicle-modal", vehicle.status === "off_premises" && "vehicle-modal--off-premises")}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vehicle-modal-title"
+        onClick={(event) => event.stopPropagation()}
       >
-        {/* Left panel */}
-        <div className="w-[300px] shrink-0 p-6 border-r border-border overflow-y-auto">
-          <div className="mb-3">
-            <StatusBadge status={vehicle.status} />
-          </div>
-
-          <div className="mb-1">
-            <span className="text-sm text-muted-foreground">{vehicle.year}</span>
-          </div>
-          <h2 className="text-2xl font-bold text-foreground leading-tight mb-0.5">
-            {vehicle.model}
-          </h2>
-          <p className="text-sm text-muted-foreground mb-4">{vehicle.color}</p>
-
-          <div className="flex justify-center mb-5">
-            <VehicleIllustration color={vehicle.color} />
-          </div>
-
-          {/* VIN */}
-          <div className="mb-4">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">VIN</p>
-            <p className="text-sm font-mono text-foreground">{vehicle.vin}</p>
-          </div>
-
-          {/* Dealer info */}
-          <div className="flex items-start gap-2 mb-4">
-            <MapPin className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-foreground">Serramonte Ford</p>
-              <p className="text-xs text-muted-foreground">(415) 555-1200</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 border-y border-border py-3 mb-4">
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
-                Time Off Premises
+        <div className="vehicle-modal-layout">
+          <section className="vehicle-details-panel">
+            <div className="vehicle-title-block">
+              <StatusBadge status={vehicle.status} />
+              <VehicleIllustration color={vehicle.color} />
+              <h2 id="vehicle-modal-title" className="vehicle-modal-title">
+                {vehicle.color} {vehicle.year} Ford {vehicle.model}
+              </h2>
+              <p className="vehicle-modal-supporting-text">
+                Vehicle details, last-known location and alert timeline.
               </p>
-              <p className="text-sm font-semibold text-foreground">≥ {vehicle.duration} min</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
-                Distance
-              </p>
-              <p className="text-sm font-semibold text-foreground">{vehicle.distance} mi</p>
-            </div>
-          </div>
-
-          {/* Activity Timeline */}
-          <div>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-              Activity Timeline
-            </p>
-            <div className="relative pl-4">
-              <div className="absolute left-1.5 top-1.5 bottom-1.5 w-px bg-border" />
-              <div className="space-y-4">
-                {vehicle.activity.map((event, i) => (
-                  <div key={i} className="relative flex gap-2">
-                    <div
-                      className={cn(
-                        "absolute -left-3 top-1 w-2.5 h-2.5 rounded-full border-2 border-white",
-                        event.active ? "bg-primary" : "bg-muted-foreground/30"
-                      )}
-                    />
-                    <div className="ml-1">
-                      <p className={cn("text-xs font-medium", event.active ? "text-foreground" : "text-muted-foreground")}>
-                        {event.label}
-                      </p>
-                      {event.time && (
-                        <p className="text-xs text-muted-foreground">{event.time}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right panel */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Map header */}
-          <div className="flex items-start justify-between px-5 pt-4 pb-2 border-b border-border">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Last Known Location</h3>
-              <p className="text-xs text-muted-foreground">Last Updated: 2m</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Map area */}
-          <div className="flex-1 min-h-0 p-0">
-            <MapPlaceholder />
-          </div>
-
-          {/* Bottom actions */}
-          <div className="border-t border-border px-6 py-5 shrink-0">
-            {!markSafeMode ? (
-              <div className="flex items-center gap-2">
-                <button className="flex-1 text-sm px-5 py-2 btn-primary whitespace-nowrap">
-                  Start Stolen Vehicles Case
-                </button>
-                <button className="text-sm font-semibold px-5 py-2 rounded-full border border-border bg-white text-foreground hover:bg-secondary transition-colors whitespace-nowrap">
-                  Escalate
-                </button>
-                <button
-                  onClick={() => setMarkSafeMode(true)}
-                  className="text-sm font-medium flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+              <div className="vehicle-modal-contacts">
+                <a
+                  className="vehicle-modal-contact"
+                  href={getTelHref(dealerInfo.phone)}
+                  aria-label="Call emergency dealership contact"
                 >
-                  Mark Safe <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+                  <Phone aria-hidden="true" />
+                  Emergency contact
+                </a>
+                <a
+                  className="vehicle-modal-contact"
+                  href={getTelHref(dealerInfo.lawEnforcement.nonEmergencyPhone)}
+                  aria-label={`Call ${dealerInfo.lawEnforcement.department}`}
+                >
+                  <Shield aria-hidden="true" />
+                  Local police
+                </a>
               </div>
-            ) : (
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-sm text-foreground font-medium">Mark this vehicle as safe?</span>
-                  <span className="text-sm text-muted-foreground">Reason:</span>
-                  <div className="relative" ref={dropdownRef}>
-                    <button
-                      onClick={() => setReasonDropdownOpen((v) => !v)}
-                      className="text-sm border border-border rounded-full px-3 py-1.5 text-foreground bg-white hover:bg-secondary transition-colors flex items-center gap-2 min-w-[160px]"
+            </div>
+
+            <section className="vehicle-identification-card" aria-labelledby="vehicle-identification-heading">
+              <h3 id="vehicle-identification-heading" className="vehicle-identification-heading">
+                Vehicle identification
+              </h3>
+              <SectionLabel>VIN</SectionLabel>
+              <p className="vehicle-vin">{vehicle.vin}</p>
+            </section>
+
+            <section className="vehicle-summary-section" aria-labelledby="vehicle-summary-heading">
+              <div className="vehicle-summary-heading">
+                <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                  <path d="M23 1.5 25.4 7.1 31 9.5 25.4 11.9 23 17.5 20.6 11.9 15 9.5 20.6 7.1Z" fill="currentColor" />
+                  <path d="M2 17H13M2 24H28M2 31H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <h3 id="vehicle-summary-heading" className="vehicle-modal-section-label">
+                  Summary
+                </h3>
+              </div>
+              <p className="vehicle-modal-summary">{getAlertSummary(vehicle)}</p>
+            </section>
+
+            <section className="vehicle-timeline-section" aria-labelledby="vehicle-timeline-heading">
+              <div className="vehicle-timeline-heading">
+                <h3 id="vehicle-timeline-heading" className="vehicle-modal-section-label">
+                  Alert timeline
+                </h3>
+                <span className="vehicle-modal-supporting-text">(dealership local time)</span>
+              </div>
+              <ol className="vehicle-timeline">
+                {[...vehicle.activity].reverse().map((event, index) => (
+                  <li className="vehicle-timeline-item" key={`${event.label}-${index}`}>
+                    <span
+                      className={cn("vehicle-timeline-dot", event.active && "is-active")}
+                      aria-hidden="true"
+                    />
+                    <div className="vehicle-timeline-copy">
+                      <p className="vehicle-event-time">{getEventTime(event.time) || "Earlier"}</p>
+                      <p className="vehicle-event-name">{getEventName(event.label)}</p>
+                      <p className="vehicle-event-description">{getEventDescription(event.label)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          </section>
+
+          <section className="vehicle-location-panel">
+            <header className="vehicle-location-header">
+              <div className="vehicle-location-heading">
+                <SectionLabel>Last known location</SectionLabel>
+                <p className="vehicle-modal-supporting-text">Last signal {lastSignal} · local time</p>
+              </div>
+              <button
+                type="button"
+                className="vehicle-modal-close"
+                onClick={onClose}
+                aria-label="Close vehicle details"
+              >
+                <X aria-hidden="true" />
+              </button>
+            </header>
+
+            <div className="vehicle-map-area">
+              <MapPreview />
+              <div className="vehicle-map-note">
+                <MapPin aria-hidden="true" />
+                <span>Dealership reference map · vehicle GPS unavailable</span>
+              </div>
+            </div>
+
+            <div className="vehicle-action-bar">
+              <button type="button" className="btn-primary vehicle-case-action">
+                Start Stolen Vehicles Case
+              </button>
+              <button type="button" className="vehicle-modal-action">
+                Escalate
+              </button>
+              <button
+                type="button"
+                className="vehicle-modal-mark-safe"
+                aria-expanded={markSafeOpen}
+                onClick={() => {
+                  setMarkSafeOpen((open) => !open);
+                  setConfirmed(false);
+                  setSelectedReason("");
+                }}
+              >
+                Mark Safe <ChevronRight aria-hidden="true" />
+              </button>
+            </div>
+
+            {markSafeOpen && (
+              <div className="vehicle-mark-safe-panel">
+                <div className="vehicle-mark-safe-content">
+                  <span className="vehicle-mark-safe-title">Mark this vehicle as safe?</span>
+                  <label className="vehicle-reason-field">
+                    <span className="sr-only">Reason</span>
+                    <select
+                      value={selectedReason}
+                      onChange={(event) => setSelectedReason(event.target.value)}
                     >
-                      <span className={selectedReason ? "text-foreground" : "text-muted-foreground"}>
-                        {selectedReason || "Select a reason..."}
-                      </span>
-                      <ChevronRight className={cn("w-3 h-3 ml-auto transition-transform", reasonDropdownOpen && "rotate-90")} />
-                    </button>
-                    {reasonDropdownOpen && (
-                      <div className="absolute bottom-full mb-1 left-0 bg-white border border-border rounded-xl shadow-lg z-10 py-1 min-w-[200px]">
-                        {MARK_SAFE_REASONS.map((reason) => (
-                          <button
-                            key={reason}
-                            onClick={() => {
-                              setSelectedReason(reason);
-                              setReasonDropdownOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors",
-                              selectedReason === reason && "text-primary font-medium"
-                            )}
-                          >
-                            {selectedReason === reason && (
-                              <span className="mr-1.5">✓</span>
-                            )}
-                            {reason}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
+                      <option value="">Select a reason</option>
+                      {MARK_SAFE_REASONS.map((reason) => (
+                        <option key={reason} value={reason}>
+                          {reason}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <button
-                    onClick={() => { setMarkSafeMode(false); setSelectedReason(""); }}
-                    className="text-sm px-4 py-1.5 rounded-full border border-border bg-white text-foreground hover:bg-secondary transition-colors"
+                    type="button"
+                    className="vehicle-confirm-safe"
+                    disabled={!selectedReason}
+                    onClick={handleConfirmSafe}
                   >
-                    Cancel
+                    {confirmed ? <><Check aria-hidden="true" /> Confirmed</> : "Confirm Safe"}
                   </button>
                   <button
-                    onClick={handleConfirmSafe}
-                    disabled={!selectedReason}
-                    className={cn(
-                      "text-sm px-4 py-1.5 rounded-full font-semibold transition-colors",
-                      selectedReason
-                        ? "bg-success text-success-foreground hover:opacity-90"
-                        : "bg-muted text-muted-foreground cursor-not-allowed"
-                    )}
+                    type="button"
+                    className="vehicle-cancel-safe"
+                    onClick={() => {
+                      setMarkSafeOpen(false);
+                      setSelectedReason("");
+                    }}
                   >
-                    {confirmed ? "Confirmed!" : "✓ Confirm Safe"}
+                    Cancel
                   </button>
                 </div>
               </div>
             )}
-          </div>
+
+            <div className="vehicle-signal-details">
+              <VehicleDetail label="Signal">{alertDescription}</VehicleDetail>
+              <VehicleDetail label="Alert age">≥ {vehicle.duration} min</VehicleDetail>
+              <VehicleDetail label="Distance from lot">{vehicle.distance.toFixed(1)} mi</VehicleDetail>
+              <VehicleDetail label="Last signal">{lastSignal}</VehicleDetail>
+            </div>
+          </section>
         </div>
       </div>
     </div>
