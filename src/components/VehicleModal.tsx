@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { X, MapPin, Phone, ChevronRight } from "lucide-react";
+import { X, MapPin, ChevronRight } from "lucide-react";
 import { Vehicle } from "@/types";
 import { cn } from "@/lib/utils";
-import SerramonteLogo from "@/components/SerramonteLogo";
 
 interface VehicleModalProps {
   vehicle: Vehicle;
@@ -19,20 +18,20 @@ const MARK_SAFE_REASONS = [
 function StatusBadge({ status }: { status: Vehicle["status"] }) {
   if (status === "theft_risk") {
     return (
-      <span className="inline-flex items-center px-2.5 py-1.5 rounded text-xs font-bold bg-red-100 text-red-700">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
         Theft Risk
       </span>
     );
   }
   if (status === "theft") {
     return (
-      <span className="inline-flex items-center px-2.5 py-1.5 rounded text-xs font-bold bg-red-100 text-red-700">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
         Theft
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center px-2.5 py-1.5 rounded text-xs font-bold bg-teal-100 text-teal-700">
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200">
       Off Premises
     </span>
   );
@@ -141,14 +140,13 @@ export function VehicleModal({ vehicle, onClose }: VehicleModalProps) {
           </h2>
           <p className="text-sm text-muted-foreground mb-4">{vehicle.color}</p>
 
-          {/* Vehicle illustration */}
           <div className="flex justify-center mb-5">
             <VehicleIllustration color={vehicle.color} />
           </div>
 
           {/* VIN */}
           <div className="mb-4">
-            <p className="text-xs text-muted-foreground font-medium mb-0.5">VIN</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">VIN</p>
             <p className="text-sm font-mono text-foreground">{vehicle.vin}</p>
           </div>
 
@@ -157,13 +155,30 @@ export function VehicleModal({ vehicle, onClose }: VehicleModalProps) {
             <MapPin className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-medium text-foreground">Serramonte Ford</p>
-              <p className="text-xs text-muted-foreground">(415)555-1200</p>
+              <p className="text-xs text-muted-foreground">(415) 555-1200</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 border-y border-border py-3 mb-4">
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
+                Time Off Premises
+              </p>
+              <p className="text-sm font-semibold text-foreground">≥ {vehicle.duration} min</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
+                Distance
+              </p>
+              <p className="text-sm font-semibold text-foreground">{vehicle.distance} mi</p>
             </div>
           </div>
 
           {/* Activity Timeline */}
           <div>
-            <p className="text-sm font-semibold text-foreground mb-3">Activity Timeline</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+              Activity Timeline
+            </p>
             <div className="relative pl-4">
               <div className="absolute left-1.5 top-1.5 bottom-1.5 w-px bg-border" />
               <div className="space-y-4">
@@ -215,29 +230,28 @@ export function VehicleModal({ vehicle, onClose }: VehicleModalProps) {
           <div className="border-t border-border px-6 py-5 shrink-0">
             {!markSafeMode ? (
               <div className="flex items-center gap-2">
-                <button className="flex-1 text-sm font-bold px-5 py-2 rounded-full text-white whitespace-nowrap hover:opacity-90 transition-opacity" style={{ backgroundColor: "#0066FE" }}>
+                <button className="flex-1 text-sm px-5 py-2 btn-primary whitespace-nowrap">
                   Start Stolen Vehicles Case
                 </button>
-                <button className="text-sm font-bold px-5 py-2 rounded-full hover:bg-blue-50 transition-colors whitespace-nowrap" style={{ border: "1.5px solid #0066FE", color: "#0066FE" }}>
+                <button className="text-sm font-semibold px-5 py-2 rounded-full border border-border bg-white text-foreground hover:bg-secondary transition-colors whitespace-nowrap">
                   Escalate
                 </button>
                 <button
                   onClick={() => setMarkSafeMode(true)}
-                  className="text-sm font-bold flex items-center gap-0.5 hover:opacity-70 transition-opacity"
-                  style={{ color: "#333333" }}
+                  className="text-sm font-medium flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Mark Safe <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             ) : (
               <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-sm text-foreground">Mark this vehicle as safe?</span>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-sm text-foreground font-medium">Mark this vehicle as safe?</span>
                   <span className="text-sm text-muted-foreground">Reason:</span>
                   <div className="relative" ref={dropdownRef}>
                     <button
                       onClick={() => setReasonDropdownOpen((v) => !v)}
-                      className="text-sm border border-border rounded px-3 py-1.5 text-foreground hover:bg-muted transition-colors flex items-center gap-2 min-w-[160px]"
+                      className="text-sm border border-border rounded-full px-3 py-1.5 text-foreground bg-white hover:bg-secondary transition-colors flex items-center gap-2 min-w-[160px]"
                     >
                       <span className={selectedReason ? "text-foreground" : "text-muted-foreground"}>
                         {selectedReason || "Select a reason..."}
@@ -245,7 +259,7 @@ export function VehicleModal({ vehicle, onClose }: VehicleModalProps) {
                       <ChevronRight className={cn("w-3 h-3 ml-auto transition-transform", reasonDropdownOpen && "rotate-90")} />
                     </button>
                     {reasonDropdownOpen && (
-                      <div className="absolute bottom-full mb-1 left-0 bg-white border border-border rounded-lg shadow-lg z-10 py-1 min-w-[200px]">
+                      <div className="absolute bottom-full mb-1 left-0 bg-white border border-border rounded-xl shadow-lg z-10 py-1 min-w-[200px]">
                         {MARK_SAFE_REASONS.map((reason) => (
                           <button
                             key={reason}
@@ -271,7 +285,7 @@ export function VehicleModal({ vehicle, onClose }: VehicleModalProps) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => { setMarkSafeMode(false); setSelectedReason(""); }}
-                    className="text-sm px-4 py-1.5 rounded border border-border hover:bg-muted transition-colors"
+                    className="text-sm px-4 py-1.5 rounded-full border border-border bg-white text-foreground hover:bg-secondary transition-colors"
                   >
                     Cancel
                   </button>
@@ -279,9 +293,9 @@ export function VehicleModal({ vehicle, onClose }: VehicleModalProps) {
                     onClick={handleConfirmSafe}
                     disabled={!selectedReason}
                     className={cn(
-                      "text-sm px-4 py-1.5 rounded font-semibold transition-colors",
+                      "text-sm px-4 py-1.5 rounded-full font-semibold transition-colors",
                       selectedReason
-                        ? "bg-green-600 text-white hover:bg-green-700"
+                        ? "bg-success text-success-foreground hover:opacity-90"
                         : "bg-muted text-muted-foreground cursor-not-allowed"
                     )}
                   >
