@@ -19,7 +19,7 @@ function StatusBadge({ status }: { status: Vehicle["status"] }) {
   if (status === "theft_risk") {
     return (
       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-200">
-        Theft Risk
+        Suspected Theft
       </span>
     );
   }
@@ -46,16 +46,18 @@ function getTelHref(phone: string) {
 }
 
 function getAlertContext(vehicle: Vehicle, mode: TimeMode) {
-  const latestEvent = vehicle.activity.find((event) => event.active);
-  const eventName = latestEvent?.label.replace(/^SVS\s*-\s*/i, "") || "Vehicle alert";
+  const alertDescription =
+    vehicle.status === "off_premises"
+      ? "Outside geofence"
+      : "Rapid acceleration detected";
 
   if (mode === "after_hours") {
-    return `After hours · ${eventName}`;
+    return `After hours · ${alertDescription}`;
   }
   if (mode === "nearing_close") {
-    return `Near closing · ${eventName}`;
+    return `Near closing · ${alertDescription}`;
   }
-  return `${eventName} detected`;
+  return alertDescription;
 }
 
 function MonitoringModeBadge({ mode }: { mode: TimeMode }) {
@@ -151,13 +153,13 @@ function AlertList({
               )}
             />
             <div className="min-w-0 flex-1">
-              <div className="mb-2">
+              <div className="mb-1">
                 <StatusBadge status={vehicle.status} />
               </div>
-              <h3 className="text-sm font-semibold text-foreground">
+              <h3 className="font-sans text-[16px] font-semibold leading-[24px] text-left text-[hsl(220,20%,16%)]">
                 {getVehicleDisplayName(vehicle)}
               </h3>
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <p className="m-0 flex items-center gap-1.5 font-sans text-[14px] font-normal leading-[20px] text-left tracking-normal text-[hsl(220,9%,46%)]">
                 <Clock className="h-3.5 w-3.5 shrink-0" />
                 <span>{getAlertContext(vehicle, mode)}</span>
               </p>
@@ -284,7 +286,7 @@ export default function Dashboard() {
               <div className="flex gap-3">
                 <SummaryCard
                   count={theftRiskVehicles.length}
-                  label="Theft Risk"
+                  label="Suspected Theft"
                   sub="Requires attention"
                   color="red"
                 />
@@ -300,7 +302,7 @@ export default function Dashboard() {
               <div className="flex gap-3">
                 <SummaryCard
                   count={nearingCloseVehicles.length}
-                  label="Theft Risk"
+                  label="Suspected Theft"
                   sub="Off premises at closing"
                   color="red"
                 />
