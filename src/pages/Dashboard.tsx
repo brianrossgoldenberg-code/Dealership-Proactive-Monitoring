@@ -2,6 +2,8 @@ import { useState } from "react";
 import {
   AlertTriangle,
   Clock,
+  Phone,
+  Shield,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,27 +18,44 @@ import FordLogo from "@/components/FordLogo";
 function StatusBadge({ status }: { status: Vehicle["status"] }) {
   if (status === "theft_risk") {
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-200">
         Theft Risk
       </span>
     );
   }
   if (status === "theft") {
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
-        Theft
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-200">
+        Suspected Theft in Progress
       </span>
     );
   }
   return (
-      <span className="inline-flex items-center whitespace-nowrap px-1.5 sm:px-2.5 py-0.5 text-[10px] sm:text-xs rounded-full font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+      <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-full bg-amber-50 text-amber-700 border border-amber-200">
       Off Premises
     </span>
   );
 }
 
 function getVehicleDisplayName(v: Vehicle) {
-  return `${v.color} ${v.year} ${v.model}`;
+  return `${v.color} ${v.year} Ford ${v.model}`;
+}
+
+function getTelHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
+
+function getAlertContext(vehicle: Vehicle, mode: TimeMode) {
+  const latestEvent = vehicle.activity.find((event) => event.active);
+  const eventName = latestEvent?.label.replace(/^SVS\s*-\s*/i, "") || "Vehicle alert";
+
+  if (mode === "after_hours") {
+    return `After hours · ${eventName}`;
+  }
+  if (mode === "nearing_close") {
+    return `Near closing · ${eventName}`;
+  }
+  return `${eventName} detected`;
 }
 
 function MonitoringModeBadge({ mode }: { mode: TimeMode }) {
@@ -94,55 +113,65 @@ function SummaryCard({
   );
 }
 
-function VehicleTable({
+function AlertList({
   vehicles,
   onView,
+  mode,
 }: {
   vehicles: Vehicle[];
   onView: (v: Vehicle) => void;
+  mode: TimeMode;
 }) {
+  if (vehicles.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-white px-6 py-10 text-center">
+        <p className="text-sm font-medium text-foreground">No active alerts</p>
+        <p className="mt-1 text-xs text-muted-foreground">New vehicle alerts will appear here.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-0 text-sm table-fixed bg-white">
-        <colgroup>
-          <col className="w-[112px] sm:w-[160px]" />
-          <col />
-          <col className="w-[78px] sm:w-[150px]" />
-        </colgroup>
-        <thead>
-          <tr className="border-b border-border">
-            <th className="text-left py-3.5 px-2.5 sm:px-5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Status
-            </th>
-            <th className="text-left py-3.5 px-2.5 sm:px-5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Vehicle
-            </th>
-            <th className="text-left py-3.5 px-2.5 sm:px-5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {vehicles.map((v) => (
-            <tr key={v.id} className="border-b border-border last:border-b-0 hover:bg-muted/40 transition-colors">
-              <td className="py-4 px-2.5 sm:px-5">
-                <StatusBadge status={v.status} />
-              </td>
-              <td className="py-4 px-2.5 sm:px-5 text-foreground">{getVehicleDisplayName(v)}</td>
-              <td className="py-4 px-2.5 sm:px-5">
-                <button
-                  onClick={() => onView(v)}
-                  aria-label={`View ${getVehicleDisplayName(v)}`}
-                  className="px-2 sm:px-4 py-1.5 rounded-full text-xs font-semibold border border-border bg-white text-foreground hover:bg-secondary transition-colors whitespace-nowrap"
-                >
-                  <span className="sm:hidden">View</span>
-                  <span className="hidden sm:inline">View Vehicle</span>
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      {vehicles.map((vehicle) => {
+        const isTheftAlert = vehicle.status !== "off_premises";
+
+        return (
+          <article
+            key={vehicle.id}
+            className={cn(
+              "relative flex flex-col gap-4 overflow-hidden rounded-xl border border-border bg-white p-4 pl-5 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center sm:px-5 sm:pl-6"
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "absolute bottom-0 left-0 top-0 w-1 rounded-none",
+                isTheftAlert ? "bg-red-600" : "bg-amber-600"
+              )}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="mb-2">
+                <StatusBadge status={vehicle.status} />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground">
+                {getVehicleDisplayName(vehicle)}
+              </h3>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                <span>{getAlertContext(vehicle, mode)}</span>
+              </p>
+            </div>
+            <button
+              onClick={() => onView(vehicle)}
+              aria-label={`View ${getVehicleDisplayName(vehicle)}`}
+              className="self-start rounded-full border border-border bg-white px-4 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary sm:self-center"
+            >
+              View Vehicle
+            </button>
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -171,6 +200,9 @@ export default function Dashboard() {
 
   const theftRiskVehicles = allVehicles.filter((v) => v.status === "theft_risk");
   const offPremisesVehicles = allVehicles.filter((v) => v.status === "off_premises");
+  const emergencyContact =
+    dealerInfo.contacts.find((contact) => contact.rank === 1 && contact.alertsOn) ??
+    dealerInfo.contacts.find((contact) => contact.alertsOn);
 
   const nearingCloseVehicles = allVehicles.map((v) => ({
     ...v,
@@ -178,6 +210,12 @@ export default function Dashboard() {
   }));
 
   const afterHoursVehicles = [{ ...theftRiskVehicles[0], status: "theft" as const }];
+  const currentAlerts =
+    mode === "business_hours"
+      ? [...theftRiskVehicles, ...offPremisesVehicles]
+      : mode === "nearing_close"
+        ? nearingCloseVehicles
+        : afterHoursVehicles;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -280,46 +318,36 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Vehicle sections */}
-          <div className="px-6 pb-6 space-y-5 shrink-0">
-            {mode === "business_hours" && (
-              <>
-                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                  <div className="flex items-center px-5 py-4 border-b border-border">
-                    <SectionHeader title="Theft Risk" count={theftRiskVehicles.length} />
-                  </div>
-                  <VehicleTable vehicles={theftRiskVehicles} onView={setSelectedVehicle} />
-                </div>
-
-                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                  <div className="flex items-center px-5 py-4 border-b border-border">
-                    <SectionHeader title="Off Premises" count={offPremisesVehicles.length} />
-                  </div>
-                  <VehicleTable vehicles={offPremisesVehicles} onView={setSelectedVehicle} />
-                </div>
-              </>
-            )}
-
-            {mode === "nearing_close" && (
-              <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                <div className="flex items-center px-5 py-4 border-b border-border">
-                  <SectionHeader
-                    title="Theft Risk — Off Premises at Closing"
-                    count={nearingCloseVehicles.length}
-                  />
-                </div>
-                <VehicleTable vehicles={nearingCloseVehicles} onView={setSelectedVehicle} />
+          {/* Unified alert feed */}
+          <div className="px-6 pb-6 shrink-0">
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <SectionHeader title="Active Alerts" count={currentAlerts.length} />
+              <div className="flex flex-wrap gap-2 sm:ml-auto">
+                {emergencyContact && (
+                  <a
+                    href={getTelHref(emergencyContact.phone)}
+                    aria-label={`Call emergency contact ${emergencyContact.name}`}
+                    className="contact-button"
+                  >
+                    <Phone aria-hidden="true" />
+                    <span>Emergency contact</span>
+                  </a>
+                )}
+                <a
+                  href={getTelHref(dealerInfo.lawEnforcement.nonEmergencyPhone)}
+                  aria-label={`Call ${dealerInfo.lawEnforcement.department} non-emergency line`}
+                  className="contact-button"
+                >
+                  <Shield aria-hidden="true" />
+                  <span>Local police</span>
+                </a>
               </div>
-            )}
-
-            {mode === "after_hours" && (
-              <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                <div className="flex items-center px-5 py-4 border-b border-border">
-                  <SectionHeader title="Potential Theft" count={afterHoursVehicles.length} />
-                </div>
-                <VehicleTable vehicles={afterHoursVehicles} onView={setSelectedVehicle} />
-              </div>
-            )}
+            </div>
+            <AlertList
+              vehicles={currentAlerts}
+              mode={mode}
+              onView={setSelectedVehicle}
+            />
           </div>
 
           {/* Dealer info section */}
